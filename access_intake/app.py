@@ -45,8 +45,10 @@ class Config:
     def __init__(self, provider='mock', model='gpt-4.1-mini', prompt=None, policy=None,
                  schema=None, mock_dir=None, timeout=30., retries=2, interval=.1,
                  max_output_tokens=3000, mock_digest=None):
-        if provider not in ('mock','openai'):
-            raise ValueError('provider must be mock or openai')
+        # Saved configuration identifies injected adapters as well as built-in providers.
+        # Worker dispatch below requires an explicit adapter for other identities.
+        if not isinstance(provider,str) or not provider.strip():
+            raise ValueError('provider must be a nonempty identifier')
         if timeout <= 0 or retries not in range(6) or interval < 0 or max_output_tokens < 1:
             raise ValueError('timeout/tokens must be positive, retries 0..5, interval nonnegative')
         self.provider, self.model = provider, model
@@ -308,7 +310,7 @@ class Store:
         result=json.loads(row['result']) if row['result'] else {
             'extraction':None,'status':row['state'],'owner':'IT Service Desk',
             'next_action':'resume-intake','error':None,
-            'response_source':'mock' if cfg['provider']=='mock' else 'openai/'+cfg['model']}
+            'response_source':'mock' if cfg['provider']=='mock' else cfg['provider']+'/'+cfg['model']}
         r.update(result)
         if row['state']=='running':r['lease_until']=row['lease_until']
         return r
@@ -353,7 +355,7 @@ def process(store,workers=4,provider_factory=None):
             job=store.claim()
             if job is None:return
             cfg=Config(**json.loads(job['config']))
-            response_source='mock' if cfg.provider=='mock' else 'openai/'+cfg.model
+            response_source='mock' if cfg.provider=='mock' else cfg.provider+'/'+cfg.model
             settled=threading.Event()
             def heartbeat():
                 while not settled.wait(min(cfg.lease_seconds/3,30)):
@@ -364,7 +366,14 @@ def process(store,workers=4,provider_factory=None):
                 obj=json.loads(job['raw'].decode('utf-8'))
                 if not isinstance(obj,dict) or not isinstance(obj.get('message'),str):
                     raise ProviderError('Export requires a message string; correct the source file then re-intake')
-                provider=provider_factory(cfg) if provider_factory else MockProvider(cfg) if cfg.provider=='mock' else OpenAIProvider(cfg)
+                if provider_factory:
+                    provider=provider_factory(cfg)
+                elif cfg.provider=='mock':
+                    provider=MockProvider(cfg)
+                elif cfg.provider=='openai':
+                    provider=OpenAIProvider(cfg)
+                else:
+                    raise ProviderError('No adapter configured for saved provider; supply its adapter or re-intake with --provider mock or openai')
                 if cfg.provider!='mock':limiter.wait(cfg.interval)
                 reply=provider.extract(job['document_id'],obj['message'])
                 if cfg.provider=='openai' and isinstance(reply,dict) and isinstance(reply.get('model'),str):

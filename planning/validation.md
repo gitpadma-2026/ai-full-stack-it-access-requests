@@ -2,6 +2,46 @@
 
 Agent-produced evidence for human review; this does not replace the course participant's acceptance decision. Commands and observed limits are in `deliverables/verification.md`. Offline tests use frozen source facts and fake provider replies; no live accuracy or account compatibility is claimed.
 
+## Step 1 resolution against the current spec
+
+Status: **verified existing functionality; no application change required**. The user requested resolution without deliberately breaking a passing test. The existing-behavior rule in `planning/plan.md` applies: inspect the behavior, strengthen incomplete coverage, and record the actual result. A passing strengthened test does not require deleting working code, a fabricated failure, an empty implementation commit, or a `test Failed` message.
+
+Commit `e99698a` (`Test first:step 1`) isolates `MockProviderTests.test_mock_provider` from storage, validation and routing, checks all 21 saved replies against the frozen scalar expectations, blocks credential/network access, and rejects unknown and changed fixture messages. The application implementation already existed before this commit. This is added regression coverage, not evidence of a new red/green implementation cycle.
+
+| Current spec ID | Step 1 result | Evidence |
+|---|---|---|
+| R-96 | Verified within the offline, authored-expectation scope. | Reviewed all 252 scalar expectations in `tests/ground_truth.json` against plan rows S01–S21 and checked their evidence spans against the decoded source messages before rerunning the mock tests. No expected value was derived from application output. |
+| R-137 | Verified for reproducible development examples. | T01 and T56 pass using `tests/mock_responses/`; no live model or real credential is used. |
+
+Reverification commands and saved observations:
+
+- `env -u API_KEY python3 -m unittest discover -s tests -k mock -v`: **2 tests passed**, saved in `planning/step-01-tests.txt`.
+- `env -u API_KEY python3 -m unittest discover -s tests -v`: **38 tests passed**, saved in `planning/step-01-suite.txt`.
+
+Step 1 is complete within this scope. No failure or implementation commit is pending for Step 1. The user retains control of committing this resolution and its logs. Subsequent steps retain the requested test-first process: any application repair must follow a genuine failing test and the user's manual commit confirmation. This resolution does not establish completion of Steps 2–8 or external submission requirements.
+
+## Step 2 verification against the current plan
+
+Status: **verified existing functionality; no application repair required**. The Step 2 tests were strengthened before any application change. `ExtractionTests` now owns T02–T05 and T49–T53, without storage, worker or routing dependencies; T55 remains in the starter suite with assertions for all 14 schema fields. The checks cover all 21 frozen scalar sets, every required-key omission, the planned invalid types/enums/dates, incomplete response/message status, exact quotes, field-specific missing/conflicting issues, conflicting alternatives, override evidence, corrections, new permissions, identifier mismatch and metadata-only edits. Expectations come from the plan and frozen source facts.
+
+- `planning/step-02-tests.txt`: 9 extraction tests passed.
+- `planning/step-02-suite.txt`: all 41 tests passed before Step 3 began.
+- Tests and these logs were committed in `3ba8ae6` alongside Step 3's failing tests. No separate failing Step 2 result is claimed.
+
+## Step 3 observed failure and implementation
+
+The required ledger tests were written/refined before the repair, independently of workers and routing. `planning/step-03-tests.txt` records six passing tests and an error in T09's exact planned `provider="fake-provider-2"` subcase: `Config` rejected the identity before it could be saved. This failure was committed as `3ba8ae6` (`test Failed`) at the user's explicit request.
+
+The subsequent application repair accepts nonempty provider identities in saved configuration, preserves their provider/model provenance, and requires an injected adapter when a worker encounters a provider other than the built-in mock/OpenAI adapters. Unknown identities fail explicitly instead of falling through to OpenAI. The CLI still offers the two built-in providers. A temporary-state check blocked credential reads and network calls and verified both explicit missing-adapter failure and successful saved-response adapter injection.
+
+- `planning/step-03-pass.txt`: all 7 ledger tests passed after the repair; the retained starter T54 is covered by the full suite.
+- `planning/step-03-suite.txt`: all 43 tests passed after the repair.
+- The implementation and passing logs are awaiting the user's manual implementation commit. Steps 4–8 have not begun in this execution sequence.
+
+## Historical inventory using the former 67-requirement mapping
+
+The table below is retained as historical evidence. Its IDs, line references, completion count and environment observations have not been reconciled with the current 146-requirement spec; they must not be used as a current acceptance checklist. The Step 1 assessment above uses the current IDs.
+
 | Spec line | Requirement | Met or not met | Evidence | Note |
 |---|---|---|---|---|
 | R-01 | Extract request_id using the schema type and allowed values. | met | tests/test_intake.py:129; planning/test-run.txt:2 | Observed passing offline check; see verification for its practical limits. |

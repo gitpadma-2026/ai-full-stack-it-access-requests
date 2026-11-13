@@ -1,0 +1,12 @@
+test_bytes_identity (test_intake.LedgerTests.test_bytes_identity) ... ok
+test_changed_source (test_intake.LedgerTests.test_changed_source) ... ok
+test_incremental_batches (test_intake.LedgerTests.test_incremental_batches) ... ok
+test_same_request_distinct_documents (test_intake.LedgerTests.test_same_request_distinct_documents) ... ok
+test_saved_provenance (test_intake.LedgerTests.test_saved_provenance) ... ok
+test_settings_refresh (test_intake.LedgerTests.test_settings_refresh) ... ok
+test_unchanged (test_intake.LedgerTests.test_unchanged) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.403s
+
+OK
