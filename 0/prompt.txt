@@ -1,0 +1,27 @@
+Review CHALLENGE.md along with the required documentation docs/requirements.mdd,materials/office-policy.md,snapshot.schema.json, materials/requests/  Evaluate CHALLENGE.md and outline the implementation plan steps.  Review and refine the implementation plan steps
+
+---
+
+Review planning/spec.mdassign a unique id to each requirements starting with R-01,R02,R-03 ECTWrite one testable requirement per rowinclude the source file,section,and exact quoted textexplain how each requirement will be verfief through a test file inception or commanddo not invent any requirenment that are not explicity sated in the source files
+
+---
+
+Formate the output as a maekdown table with these columns \ID\Requirement|Source|Check| ensure every requirnment is traceable to its orginal source
+
+---
+
+$plan-from-spec
+
+---
+
+<send_user_message_question_reply>
+[{"answer":"Use the existing design","question":"The sources leave concurrent conflicting updates and deployment topology undefined. May the plan use the existing single-host shared SQLite design, with intake transaction order defining the current revision? I’ll mark these as proposed implementation choices pending your answer.","questionItemId":"[\"request_user_input_async\",\"call_85da5daeb57541e9afd08ceb4ab1bd30\",0]"}]
+</send_user_message_question_reply>
+
+---
+
+git add planning/spec.md
+
+---
+
+git commit -Spec: the brief as numbered requirements
