@@ -1,0 +1,76 @@
+{
+  "cli_version": "0.13.3",
+  "checkpoint_id": "01M7B3Q8ANA9VR3K0P3316VZ85",
+  "session_id": "01a1d627-c2f7-7e50-8ea1-d9d017e97582",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-13T18:46:36.098131945Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "save_step_count": 3,
+  "files_touched": [
+    "README.md",
+    "access_intake/app.py",
+    "deliverables/accuracy.md",
+    "deliverables/extractions.jsonl",
+    "deliverables/history.jsonl",
+    "deliverables/queue.json",
+    "deliverables/snapshot.json",
+    "deliverables/snapshots/4c1cb8a427b240dc82acacf59d5c878c/extractions.jsonl",
+    "deliverables/snapshots/4c1cb8a427b240dc82acacf59d5c878c/history.jsonl",
+    "deliverables/snapshots/4c1cb8a427b240dc82acacf59d5c878c/queue.json",
+    "deliverables/synthetic/extractions.jsonl",
+    "deliverables/synthetic/history.jsonl",
+    "deliverables/synthetic/queue.json",
+    "deliverables/synthetic/snapshot.json",
+    "deliverables/synthetic/snapshots/957d305e8ca242f59d9ae8a55c0f8d62/extractions.jsonl",
+    "deliverables/synthetic/snapshots/957d305e8ca242f59d9ae8a55c0f8d62/history.jsonl",
+    "deliverables/synthetic/snapshots/957d305e8ca242f59d9ae8a55c0f8d62/queue.json",
+    "deliverables/verification.md",
+    "planning/remaining-suite.txt",
+    "planning/remaining-tests-before.txt",
+    "planning/test-run-legacy.txt",
+    "planning/test-run.txt",
+    "planning/validation-history.md",
+    "planning/validation.md",
+    "planning/workload.json",
+    "tests/test_intake.py",
+    "tools/benchmark_intake.py"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "53202d6e98ed",
+  "checkpoint_transcript_start": 83,
+  "transcript_lines_at_start": 83,
+  "compact_transcript_start": 17,
+  "token_usage": {
+    "input_tokens": 87542,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4439936,
+    "output_tokens": 31392,
+    "api_call_count": 52
+  },
+  "session_token_usage": {
+    "input_tokens": 118982,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4606720,
+    "output_tokens": 32278,
+    "api_call_count": 61
+  },
+  "redaction": {
+    "replacements": 12,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 12,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 5
+  }
+}

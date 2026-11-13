@@ -1,0 +1,27 @@
+implement the required changes and rerun the full test suite
+
+---
+
+<send_user_message_question_reply>
+[{"answer":"Continue Steps 4–8","question":"The Step 3 provider fix is already committed. Should I continue through the remaining implementation plan (Steps 4–8), or focus on a specific required change?","questionItemId":"[\"request_user_input_async\",\"call_6b6b3fc69e004cd6adade895db73454a\",0]"}]
+</send_user_message_question_reply>
+
+---
+
+use only mock responses.Dont call the real model or required API_KEY
+
+---
+
+After allsteps are completed  the test pass update then update planning/test-run.txt and prepare planning/validation.md and check challenge.md and readme for all submission requirnments
+
+---
+
+is my excersise done
+
+---
+
+Commit
+
+---
+
+push to git branch
