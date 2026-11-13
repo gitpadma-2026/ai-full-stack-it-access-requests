@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -57,6 +58,350 @@ class MockProviderTests(unittest.TestCase):
                 provider.extract('IT-001.json', 'unseen fixture text')
 
 
+class ExtractionTests(unittest.TestCase):
+    """Step 2 validates saved responses without storage, workers or routing."""
+
+    def setUp(self):
+        for target in ('socket.socket', 'urllib.request.urlopen',
+                       'access_intake.app.Store', 'access_intake.app.route'):
+            patcher = mock.patch(target, side_effect=AssertionError('step 2 dependency forbidden'))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.config = Config()
+        self.provider = MockProvider(self.config)
+        self.fields = ('request_id', 'request_date', 'kind', 'requester', 'team',
+                       'system', 'environment', 'permission', 'business_purpose',
+                       'start_date', 'end_date', 'manager')
+
+    def source(self, name):
+        return json.loads((ROOT / TRUTH[name]['source']).read_text(encoding='utf-8'))
+
+    def check_extraction(self, name, document=None):
+        message = (document if document is not None else self.source(name))['message']
+        reply = self.provider.extract(name, message)
+        extraction = validate_reply(reply, message, self.config.schema)
+        self.assertEqual({key: extraction[key] for key in self.fields},
+                         {key: TRUTH[name]['expected'][key] for key in self.fields}, name)
+        return extraction
+
+    def test_extraction_fields(self):
+        schema = json.loads((ROOT / 'snapshot.schema.json').read_text())
+        self.assertEqual(self.config.schema, schema)
+        self.assertEqual(set(schema['properties']), set(self.fields) | {'issues', 'supporting_quotes'})
+        for name in TRUTH:
+            with self.subTest(name=name):
+                extraction = self.check_extraction(name)
+                self.assertEqual(set(extraction), set(schema['required']))
+                for field in ('issues', 'supporting_quotes'):
+                    self.assertIsInstance(extraction[field], list)
+                    self.assertTrue(all(isinstance(value, str) for value in extraction[field]))
+                for field in self.fields:
+                    self.assertTrue(extraction[field] is None or isinstance(extraction[field], str))
+                for field in ('request_date', 'start_date', 'end_date'):
+                    if extraction[field] is not None:
+                        self.assertRegex(extraction[field], r'^\d{4}-\d{2}-\d{2}$')
+                for field, allowed in (('kind', ('new', 'change', 'withdrawal', 'other', None)),
+                                       ('environment', ('staging', 'production', None)),
+                                       ('permission', ('read', 'write', 'admin', None))):
+                    self.assertIn(extraction[field], allowed)
+
+    def test_invalid_outputs(self):
+        message = self.source('IT-001.json')['message']
+        original = self.provider.extract('IT-001.json', message)
+        extraction = json.loads(original['output'][0]['content'][0]['text'])
+
+        def envelope(value):
+            reply = copy.deepcopy(original)
+            reply['output'][0]['content'][0]['text'] = json.dumps(value)
+            return reply
+
+        for field in self.config.schema['required']:
+            with self.subTest(missing=field):
+                value = copy.deepcopy(extraction)
+                del value[field]
+                with self.assertRaises(ProviderError):
+                    validate_reply(envelope(value), message, self.config.schema)
+        changes = ({'surprise': True}, {'requester': 123}, {'kind': 'approve'},
+                   {'environment': 'dev'}, {'permission': 'root'}, {'issues': 'oops'},
+                   {'issues': [7]}, {'supporting_quotes': 'oops'}, {'supporting_quotes': [7]},
+                   {'start_date': '2026-02-30'}, {'start_date': '23/10/2026'},
+                   {'supporting_quotes': ['invented quote']})
+        for change in changes:
+            with self.subTest(change=change):
+                value = copy.deepcopy(extraction)
+                value.update(change)
+                with self.assertRaises(ProviderError):
+                    validate_reply(envelope(value), message, self.config.schema)
+        for level in ('response', 'message'):
+            with self.subTest(incomplete=level):
+                reply = copy.deepcopy(original)
+                (reply if level == 'response' else reply['output'][0])['status'] = 'incomplete'
+                with self.assertRaises(ProviderError):
+                    validate_reply(reply, message, self.config.schema)
+        for name in ('refusal', 'interrupted', 'malformed'):
+            with self.subTest(fixture=name):
+                reply = json.loads((ROOT / f'tests/mock_responses/{name}.json').read_text())
+                with self.assertRaises(ProviderError):
+                    validate_reply(reply, message, self.config.schema)
+
+    def test_source_semantics(self):
+        for name in ('IT-004.json', 'IT-007.json', 'IT-008.json', 'IT-010.json',
+                     'IT-011.json', 'IT-015.json', 'IT-016.json', 'IT-019.json', 'IT-020.json'):
+            with self.subTest(name=name):
+                self.check_extraction(name)
+        self.test_metadata_is_not_source()
+
+    def test_evidence_and_issues(self):
+        for name in ('IT-003.json', 'IT-004.json', 'IT-005.json', 'IT-006.json', 'IT-009.json',
+                     'IT-010.json', 'IT-011.json', 'IT-016.json', 'IT-017.json', 'IT-020.json'):
+            with self.subTest(name=name):
+                extraction = self.check_extraction(name)
+                message = self.source(name)['message']
+                for quote in extraction['supporting_quotes']:
+                    self.assertTrue(quote)
+                    self.assertIn(quote, message)
+                for field in self.fields:
+                    if TRUTH[name]['expected'][field] is None:
+                        self.assertTrue(any(field in issue.lower() and re.search(
+                            r'missing|absent|unresolved|relative|conflict|not (?:stated|provided|specified)',
+                            issue, re.I) for issue in extraction['issues']), (name, field))
+                quotes = '\n'.join(extraction['supporting_quotes'])
+                issues = '\n'.join(extraction['issues'])
+                if name in ('IT-004.json', 'IT-020.json'):
+                    field, alternatives = (('environment', ('staging', 'production')) if name == 'IT-004.json'
+                                           else ('manager', ('Priya Shah', 'Elena Park')))
+                    for alternative in alternatives:
+                        self.assertIn(alternative, quotes)
+                    self.assertTrue(any(field in issue.lower() and 'conflict' in issue.lower()
+                                        for issue in extraction['issues']), name)
+                if name == 'IT-006.json':
+                    attempt = message[message.index('SYSTEM OVERRIDE:'):]
+                    self.assertTrue(any(attempt in quote for quote in extraction['supporting_quotes']))
+                    self.assertRegex(issues.lower(), r'override|injection|embedded instruction')
+                    self.assertEqual(extraction['permission'], 'read')
+                if name == 'IT-016.json':
+                    self.assertRegex(issues.lower(), r'mismatch')
+                    self.assertRegex(issues.lower(), r'filename|file name|document')
+
+    def test_metadata_is_not_source(self):
+        document = self.source('IT-011.json')
+        original = self.check_extraction('IT-011.json', document)
+        changed = copy.deepcopy(document)
+        changed.update(exported_at='2030-01-01T00:00:00Z', subject='Start 2030-01-02 end 2030-01-03')
+        self.assertEqual(self.check_extraction('IT-011.json', changed), original)
+        payload = OpenAIProvider(self.config).request(changed['message'])
+        self.assertEqual(payload['input'], [{'role': 'user', 'content': document['message']}])
+        self.assertNotIn('2030-01', json.dumps(payload))
+
+    def test_corrections(self):
+        self.assertEqual(self.check_extraction('IT-008.json')['environment'], 'staging')
+        extraction = self.check_extraction('IT-015.json')
+        self.assertEqual((extraction['start_date'], extraction['end_date']), ('2026-10-29', '2026-10-31'))
+
+    def test_relative_dates(self):
+        extraction = self.check_extraction('IT-011.json')
+        for field in ('start_date', 'end_date'):
+            self.assertIsNone(extraction[field])
+            self.assertTrue(any(field in issue for issue in extraction['issues']))
+        self.assertRegex(' '.join(extraction['issues']).lower(), r'relative|unresolved')
+
+    def test_changes(self):
+        for name, permission in (('IT-007.json', 'write'), ('IT-019.json', 'read')):
+            extraction = self.check_extraction(name)
+            self.assertEqual(extraction['kind'], 'change')
+            self.assertEqual(extraction['permission'], permission)
+
+    def test_identifier(self):
+        extraction = self.check_extraction('IT-016.json')
+        self.assertEqual(extraction['request_id'], 'IT-061')
+        issues = ' '.join(extraction['issues']).lower()
+        self.assertIn('mismatch', issues)
+        self.assertRegex(issues, r'filename|file name|document')
+
+
+class LedgerTests(unittest.TestCase):
+    """Step 3 persists prepared mock results, independently of workers/routing."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        for target in ('socket.socket', 'urllib.request.urlopen',
+                       'access_intake.app.process', 'access_intake.app.route'):
+            patcher = mock.patch(target, side_effect=AssertionError('step 3 dependency forbidden'))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.store = Store(Path(self.temp.name) / 'state.db')
+        self.config = Config()
+
+    def source(self, name='IT-001.json'):
+        return ROOT / TRUTH[name]['source']
+
+    def prepared(self, name='IT-001.json', revised=False, document_id=None):
+        fixture = ROOT / 'tests/mock_responses' / ('revised' if revised else '') / name
+        reply = json.loads(fixture.read_text())
+        extraction = json.loads(reply['output'][0]['content'][0]['text'])
+        expected = copy.deepcopy(TRUTH[name]['expected'])
+        if revised:
+            expected['permission'] = 'write'
+        for key in expected:
+            if key not in ('supporting_quotes', 'issues'):
+                self.assertEqual(extraction[key], expected[key])
+        routing = dict(TRUTH[name]['route'])
+        if revised:
+            routing = dict(status='review', owner='Security Review', next_action='review-risk-then-owner')
+        if document_id and document_id != name:
+            extraction['issues'].append('request_id: identifier mismatch with document filename')
+            routing = dict(status='needs-information', owner='IT Service Desk', next_action='clarify')
+        return dict(extraction=extraction, error=None, response_source='mock', **routing)
+
+    def save(self, name='IT-001.json', revised=False, document_id=None):
+        job = self.store.claim(30)
+        self.assertIsNotNone(job)
+        self.assertTrue(self.store.finish(job['attempt_id'], job['token'],
+                                        self.prepared(name, revised, document_id)))
+        return job
+
+    def test_bytes_identity(self):
+        raw = self.source().read_bytes()
+        self.assertIsInstance(json.loads(raw.decode('utf-8'))['message'], str)
+        self.store.ingest([self.source()], self.config)
+        pending = self.store.current()[0]
+        self.assertEqual(pending['document_id'], 'IT-001.json')
+        self.assertEqual(pending['source_sha256'], hashlib.sha256(raw).hexdigest())
+        self.assertEqual(pending['state'], 'pending')
+        with self.store.connection() as conn:
+            saved = conn.execute('SELECT raw FROM attempts').fetchone()['raw']
+        self.assertEqual(saved, raw)
+        self.save()
+        self.assertEqual(self.store.current()[0]['extraction']['request_id'], 'IT-001')
+
+    def test_unchanged(self):
+        provider = MockProvider(self.config)
+        message = json.loads(self.source().read_bytes())['message']
+        with mock.patch.object(provider, 'extract', wraps=provider.extract) as calls:
+            self.store.ingest([self.source()], self.config)
+            provider.extract('IT-001.json', message)
+            self.save()
+            first = self.store.current()[0]
+            self.assertEqual(self.store.ingest([self.source()], self.config), 0)
+            self.assertIsNone(self.store.claim(30))
+            self.assertEqual(calls.call_count, 1)
+        self.assertEqual(self.store.current(), [first])
+        self.assertEqual(self.store.history('IT-001.json'), [first])
+        self.assertEqual(first['extraction']['permission'], 'read')
+        self.assertEqual(first['owner'], 'System Owner')
+        self.assertEqual(first['next_action'], 'review-request')
+
+    def test_changed_source(self):
+        raw = self.source().read_bytes()
+        changed = json.loads(raw)
+        changed['message'] = changed['message'].replace('new read access', 'new write access')
+        revisions = (raw, raw + b'\n ', json.dumps(changed).encode('utf-8'))
+        path = Path(self.temp.name) / 'IT-001.json'
+        for index, revision in enumerate(revisions):
+            path.write_bytes(revision)
+            self.assertEqual(self.store.ingest([path], self.config), 1)
+            self.save(revised=index == 2)
+        history = self.store.history(path.name)
+        self.assertEqual(len(history), 3)
+        self.assertEqual(len({row['attempt_id'] for row in history}), 3)
+        self.assertEqual([row['source_sha256'] for row in history],
+                         [hashlib.sha256(raw).hexdigest() for raw in revisions])
+        self.assertEqual(len({row['source_sha256'] for row in history}), 3)
+        self.assertEqual([row['extraction']['permission'] for row in history], ['read', 'read', 'write'])
+        self.assertEqual([row['owner'] for row in history], ['System Owner', 'System Owner', 'Security Review'])
+        self.assertEqual(self.store.current(), [history[-1]])
+
+    def test_settings_refresh(self):
+        schema = copy.deepcopy(self.config.schema)
+        schema['description'] = 'revision-2'
+        changes = {'model': 'mock-model-2', 'prompt': self.config.prompt + '\n',
+                   'schema': schema, 'policy': self.config.policy + '\n',
+                   'provider': 'fake-provider-2', 'max_output_tokens': 3001}
+        for index, (field, value) in enumerate(changes.items()):
+            with self.subTest(field=field):
+                self.store = Store(Path(self.temp.name) / f'settings-{index}.db')
+                self.store.ingest([self.source()], self.config)
+                self.save()
+                # Config identity is tested with an injected saved reply, never a live adapter.
+                config = Config(**{field: value})
+                self.assertEqual(self.store.ingest([self.source()], config), 1)
+                self.save()
+                self.assertEqual(self.store.ingest([self.source()], config), 0)
+                self.assertIsNone(self.store.claim(30))
+                history = self.store.history()
+                self.assertEqual(len(history), 2)
+                self.assertEqual(history[0]['source_sha256'], history[1]['source_sha256'])
+                self.assertNotEqual(history[0]['config_key'], history[1]['config_key'])
+                self.assertEqual(history[1]['extraction']['permission'], 'read')
+                with self.store.connection() as conn:
+                    saved = [json.loads(row['config']) for row in conn.execute('SELECT config FROM attempts ORDER BY attempt_id')]
+                self.assertEqual(saved, [self.config.as_dict(), config.as_dict()])
+
+    def test_incremental_batches(self):
+        self.store.ingest([self.source()], self.config)
+        self.save()
+        first = self.store.current()[0]
+        self.store.ingest([self.source('IT-002.json')], self.config)
+        self.save('IT-002.json')
+        rows = {row['document_id']: row for row in self.store.current()}
+        self.assertEqual(set(rows), {'IT-001.json', 'IT-002.json'})
+        self.assertEqual(rows['IT-001.json'], first)
+        self.assertEqual(rows['IT-002.json']['owner'], 'Security Review')
+        self.assertEqual(rows['IT-002.json']['next_action'], 'review-risk-then-owner')
+
+    def test_same_request_distinct_documents(self):
+        path = Path(self.temp.name) / 'COPY-001.json'
+        path.write_bytes(self.source().read_bytes())
+        self.store.ingest([self.source(), path], self.config)
+        self.save()
+        self.save(document_id=path.name)
+        rows = {row['document_id']: row for row in self.store.current()}
+        self.assertEqual(set(rows), {'IT-001.json', 'COPY-001.json'})
+        self.assertEqual({row['extraction']['request_id'] for row in rows.values()}, {'IT-001'})
+        self.assertEqual(len({row['source_sha256'] for row in rows.values()}), 1)
+        self.assertEqual(rows['IT-001.json']['owner'], 'System Owner')
+        self.assertEqual(rows[path.name]['next_action'], 'clarify')
+        self.assertIn('mismatch', ' '.join(rows[path.name]['extraction']['issues']))
+
+    def test_saved_provenance(self):
+        raw = self.source().read_bytes()
+        changed = json.loads(raw)
+        changed['message'] = changed['message'].replace('new read access', 'new write access')
+        edited = json.dumps(changed).encode('utf-8')
+        path = Path(self.temp.name) / 'IT-001.json'
+        for index, revisions in enumerate(((raw, edited), (edited, raw))):
+            with self.subTest(order=index):
+                self.store = Store(Path(self.temp.name) / f'provenance-{index}.db')
+                jobs = []
+                for revision in revisions:
+                    path.write_bytes(revision)
+                    self.store.ingest([path], self.config)
+                    jobs.append(self.store.claim(30))
+                for job in reversed(jobs):
+                    self.assertTrue(self.store.finish(job['attempt_id'], job['token'],
+                        self.prepared(revised=job['raw'] == edited)))
+                self.assertEqual(self.store.current()[0]['attempt_id'], jobs[-1]['attempt_id'])
+                self.assertEqual(self.store.current()[0]['source_sha256'], hashlib.sha256(revisions[-1]).hexdigest())
+                with self.store.connection() as conn:
+                    stored = list(conn.execute('SELECT * FROM attempts ORDER BY attempt_id'))
+                for row, revision in zip(stored, revisions):
+                    self.assertEqual(row['raw'], revision)
+                    self.assertEqual(json.loads(row['config']), self.config.as_dict())
+                    self.assertEqual(row['config_key'], self.config.key)
+                # Newest failure also remains current when an older success finishes later.
+                self.store.ingest([path], self.config, force=True)
+                older = self.store.claim(30)
+                self.store.ingest([path], self.config, force=True)
+                newer = self.store.claim(30)
+                error = dict(extraction=None, status='error', owner='IT Service Desk',
+                             next_action='retry-extraction', error='temporary-unavailable; retry', response_source='mock')
+                self.assertTrue(self.store.finish(newer['attempt_id'], newer['token'], error))
+                self.assertTrue(self.store.finish(older['attempt_id'], older['token'], self.prepared(revised=revisions[-1] == edited)))
+                self.assertEqual(self.store.current()[0]['attempt_id'], newer['attempt_id'])
+                self.assertEqual(self.store.current()[0]['status'], 'error')
+
+
 class IntakeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -97,89 +442,9 @@ class IntakeTests(unittest.TestCase):
             self.assertIn(quote,message,(name,key))
         return ext
 
-    def test_bytes_identity(self):
-        self.enqueue()
-        current=self.store.current()[0]
-        self.assertEqual(current['document_id'],'IT-001.json')
-        self.assertEqual(current['source_sha256'],hashlib.sha256(self.source().read_bytes()).hexdigest())
-        self.assertEqual(current['state'],'pending')
-
-    def test_unchanged(self):
-        self.run_intake()
-        self.enqueue()
-        self.assertEqual(len(self.store.history('IT-001.json')),1)
-        self.assertEqual(len(self.store.current()),1)
-        self.assertIsNone(self.store.claim(30))
-
-    def test_changed_source(self):
-        self.run_intake()
-        old=self.store.current()[0]
-        p=Path(self.temp.name)/'IT-001.json'
-        p.write_bytes(self.source().read_bytes()+b'\n ')
-        self.store.ingest([p],self.config)
-        self.assertEqual(len(self.store.history(p.name)),2)
-        self.assertNotEqual(old['source_sha256'],self.store.current()[0]['source_sha256'])
-        process(self.store,provider_factory=lambda cfg: MockProvider(cfg))
-        self.assertEqual(len(self.store.current()),1)
-        self.assertEqual(self.store.history(p.name)[0]['source_sha256'],old['source_sha256'])
-        revised=json.loads(self.source().read_text())
-        revised['message']=revised['message'].replace('new read access','new write access')
-        p.write_text(json.dumps(revised))
-        # The response is independently authored from the explicit changed source span.
-        reply=json.loads((ROOT/'tests/mock_responses/revised/IT-001.json').read_text())
-        class Revised:
-            def extract(self,*args):return reply
-        self.store.ingest([p],self.config)
-        process(self.store,provider_factory=lambda cfg:Revised())
-        latest=self.store.current()[0]
-        self.assertEqual(latest['extraction']['permission'],'write')
-        self.assertEqual(latest['owner'],'Security Review')
-        history=self.store.history(p.name)
-        self.assertEqual(len(history),3)
-        self.assertEqual(history[0]['extraction']['permission'],'read')
-        self.assertNotEqual(history[0]['source_sha256'],latest['source_sha256'])
-
-    def test_settings_refresh(self):
-        self.run_intake()
-        for key in ('model','prompt','policy'):
-            cfg=Config(**{key:getattr(self.config,key)+'\nchanged'})
-            self.enqueue(config=cfg)
-        self.assertEqual(len(self.store.history('IT-001.json')),4)
-        schema=copy.deepcopy(self.config.schema)
-        schema['description']='A schema revision'
-        self.enqueue(config=Config(schema=schema))
-        self.assertEqual(len(self.store.history('IT-001.json')),5)
-
-    def test_incremental_batches(self):
-        self.run_intake('IT-001.json')
-        self.run_intake('IT-002.json')
-        self.assertEqual(len(self.store.current()),2)
-
     def test_all_source_cases(self):
         for name in TRUTH:
             with self.subTest(name=name):self.check_source(name)
-
-    def test_invalid_outputs(self):
-        message=json.loads(self.source().read_bytes())['message']
-        for name in ('refusal','interrupted','malformed'):
-            with self.subTest(name=name),self.assertRaises(ProviderError):
-                validate_reply(json.loads((ROOT/f'tests/mock_responses/{name}.json').read_text()),message,self.config.schema)
-        for change in ({'surprise':True},{'permission':'root'},{'start_date':'2026-02-30'},
-                       {'supporting_quotes':['invented quote']},{'requester':123}, {'issues':'oops'}):
-            ext=self.extraction();ext.update(change)
-            with self.subTest(change=change),self.assertRaises(ProviderError):
-                validate_reply({'status':'completed','output':[{'type':'message','status':'completed','content':[{'type':'output_text','text':json.dumps(ext)}]}]},message,self.config.schema)
-        ext=self.extraction();del ext['manager']
-        with self.assertRaises(ProviderError):
-            validate_reply({'status':'completed','output':[{'type':'message','status':'completed','content':[{'type':'output_text','text':json.dumps(ext)}]}]},message,self.config.schema)
-
-    def test_metadata_is_not_source(self):
-        ext=self.check_source('IT-011.json')
-        self.assertIsNone(ext['start_date'])
-        self.assertIsNone(ext['end_date'])
-        payload=OpenAIProvider(self.config).request('source text only')
-        self.assertEqual(payload['input'][0]['content'],'source text only')
-        self.assertNotIn('exported_at',payload['input'][0]['content'])
 
     def test_missing_dates(self):
         ext=self.check_source('IT-010.json')
@@ -189,14 +454,6 @@ class IntakeTests(unittest.TestCase):
         for name,key in [('IT-004.json','environment'),('IT-020.json','manager')]:
             ext=self.check_source(name);self.assertIsNone(ext[key]);self.assertTrue(ext['issues'])
 
-    def test_corrections(self):
-        self.assertEqual(self.check_source('IT-008.json')['environment'],'staging')
-        self.assertEqual(self.check_source('IT-015.json')['start_date'],'2026-10-29')
-
-    def test_relative_dates(self):self.assertIsNone(self.check_source('IT-011.json')['start_date'])
-    def test_changes(self):
-        for name in ('IT-007.json','IT-019.json'):self.assertEqual(self.check_source(name)['kind'],'change')
-    def test_identifier(self):self.assertEqual(self.check_source('IT-016.json')['request_id'],'IT-061')
     def test_synthetic(self):self.check_source('SYN-001.json')
     def test_override(self):
         self.check_source('IT-006.json')

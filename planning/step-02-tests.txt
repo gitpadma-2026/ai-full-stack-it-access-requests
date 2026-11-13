@@ -1,0 +1,14 @@
+test_changes (test_intake.ExtractionTests.test_changes) ... ok
+test_corrections (test_intake.ExtractionTests.test_corrections) ... ok
+test_evidence_and_issues (test_intake.ExtractionTests.test_evidence_and_issues) ... ok
+test_extraction_fields (test_intake.ExtractionTests.test_extraction_fields) ... ok
+test_identifier (test_intake.ExtractionTests.test_identifier) ... ok
+test_invalid_outputs (test_intake.ExtractionTests.test_invalid_outputs) ... ok
+test_metadata_is_not_source (test_intake.ExtractionTests.test_metadata_is_not_source) ... ok
+test_relative_dates (test_intake.ExtractionTests.test_relative_dates) ... ok
+test_source_semantics (test_intake.ExtractionTests.test_source_semantics) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.035s
+
+OK

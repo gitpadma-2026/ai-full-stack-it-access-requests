@@ -36,6 +36,12 @@ class SuppliedFiles(unittest.TestCase):
     def test_the_schema_names_the_fields_it_requires(self):
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
         self.assertIn("request_id", schema["required"])
+        expected = {'request_id', 'request_date', 'kind', 'requester', 'team', 'system',
+                    'environment', 'permission', 'business_purpose', 'start_date',
+                    'end_date', 'manager', 'supporting_quotes', 'issues'}
+        self.assertEqual(set(schema['required']), expected)
+        self.assertEqual(set(schema['properties']), expected)
+        self.assertFalse(schema['additionalProperties'])
 
 
 class MockResponse(unittest.TestCase):
