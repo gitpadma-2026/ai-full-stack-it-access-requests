@@ -1,0 +1,14 @@
+read planning/sped.md and planning/plan.md implement the appliccation by the following planning/plan.md in the following stepsfor each implment stes1. write the test specified in the plan before writing application code2.run the test and demo it failed2.stop and ask me to commit the fail and write a message "test Failed"4.After i confoirm the commit implement the application code and pass the teststop and commit implementation again with message "steps and give me the steps"now run the entire test suit after each implementation step if any test fail stop and report the fail before procedding
+use only mock responses stored under tests/mock_+responsesdon't call a real AI model, don't read or required API_KEYexcept test value must come from planning/plan.md not from actual execution resultsfollow the test first approach for every stepdont skip implementation or verfication steps and dont git commit automatically
+
+---
+
+git status
+
+---
+
+git add tests/
+
+---
+
+git commit "Test first:step 1"
