@@ -1,0 +1,12 @@
+{
+  "mode": "mock repeated IT-001 source and saved reply; no live calls",
+  "python": "3.12.3",
+  "count": 2000,
+  "workers": 4,
+  "enqueue_seconds": 11.065,
+  "processing_seconds": 10.655,
+  "current_count": 2000,
+  "completed": 2000,
+  "errors": 0,
+  "claims": 2000
+}

@@ -1,0 +1,6 @@
+PASS  1. Codex: codex-cli 0.167.2; WARNING: proceeding, even though we could not create PATH aliases: Read-only file system (os error 30)
+Logged in using ChatGPT
+PASS  2. Repository: clone of https://github.com/gitpadma-2026/ai-full-stack-it-access-requests; 20 request exports read
+FAIL  3. Session capture: entire is not on your PATH. Install the Entire CLI as the course's session-capture guide says.
+PASS  4. Tests on mock responses: Ran 38 tests in 2.122s; OK (API_KEY unset)
+NOT READY: 1 of 4 checks failed. Fix each FAIL above and run this again; if one still fails, ask the facilitator.

@@ -1,0 +1,15 @@
+{
+  "status": "completed",
+  "output": [
+    {
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "refusal",
+          "refusal": "Cannot comply"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "status": "completed",
+  "model": "mock-v1",
+  "output": [
+    {
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"request_id\": \"SYN-001\", \"request_date\": \"2026-10-22\", \"kind\": \"new\", \"requester\": \"Maya Chen\", \"team\": \"Analytics\", \"system\": \"Atlas\", \"environment\": \"staging\", \"permission\": \"read\", \"business_purpose\": \"check weekly conversion totals before reporting\", \"start_date\": \"2026-10-23\", \"end_date\": \"2026-11-06\", \"manager\": \"Priya Shah\", \"supporting_quotes\": [\"On 2026-10-22, Maya Chen of Analytics filed SYN-001. This is a new request: please enable read permission for Atlas, staging, beginning 2026-10-23 and ending 2026-11-06. Priya Shah manages me. The purpose is to check weekly conversion totals before reporting.\"], \"issues\": []}"
+        }
+      ]
+    }
+  ],
+  "source_message_sha256": "0b33962a7afc9bf937785013b5a4ccb54c10464b39ba58dd179fad60b4288e4f"
+}

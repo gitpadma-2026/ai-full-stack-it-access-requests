@@ -4,3 +4,8 @@
 node_modules/
 .venv/
 __pycache__/
+.state/
+*.db
+*.db-shm
+*.db-wal
+.export.lock

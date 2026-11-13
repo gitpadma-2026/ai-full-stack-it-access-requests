@@ -1,0 +1,14 @@
+[
+  {
+    "document_id": "SYN-001.json",
+    "source_sha256": "3f796d22d628df31959532d599767e3380290640ee71d1cf42beeeac7d56a567",
+    "attempt_id": 1,
+    "config_key": "f4002f25a9d041542b593449041e90cc73332726409dcdf3ca06af21f459f6e3",
+    "state": "completed",
+    "status": "review",
+    "owner": "System Owner",
+    "next_action": "review-request",
+    "error": null,
+    "response_source": "mock"
+  }
+]
