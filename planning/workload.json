@@ -3,10 +3,12 @@
   "python": "3.12.3",
   "count": 2000,
   "workers": 4,
-  "enqueue_seconds": 11.065,
-  "processing_seconds": 10.655,
+  "enqueue_seconds": 21.787,
+  "processing_seconds": 20.798,
   "current_count": 2000,
   "completed": 2000,
   "errors": 0,
-  "claims": 2000
+  "claims": 2000,
+  "peak_active_calls": 1,
+  "identifier_mismatch_clarifications": 2000
 }

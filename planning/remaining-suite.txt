@@ -1,0 +1,62 @@
+test_changes (test_intake.ExtractionTests.test_changes) ... ok
+test_corrections (test_intake.ExtractionTests.test_corrections) ... ok
+test_evidence_and_issues (test_intake.ExtractionTests.test_evidence_and_issues) ... ok
+test_extraction_fields (test_intake.ExtractionTests.test_extraction_fields) ... ok
+test_identifier (test_intake.ExtractionTests.test_identifier) ... ok
+test_invalid_outputs (test_intake.ExtractionTests.test_invalid_outputs) ... ok
+test_metadata_is_not_source (test_intake.ExtractionTests.test_metadata_is_not_source) ... ok
+test_relative_dates (test_intake.ExtractionTests.test_relative_dates) ... ok
+test_source_semantics (test_intake.ExtractionTests.test_source_semantics) ... ok
+test_accuracy (test_intake.IntakeTests.test_accuracy) ... ok
+test_accuracy_report (test_intake.IntakeTests.test_accuracy_report) ... ok
+test_cli (test_intake.IntakeTests.test_cli) ... ok
+test_concurrent_claims (test_intake.IntakeTests.test_concurrent_claims) ... ok
+test_concurrent_export_snapshot (test_intake.IntakeTests.test_concurrent_export_snapshot) ... ok
+test_concurrent_history_audit (test_intake.IntakeTests.test_concurrent_history_audit) ... ok
+test_docs (test_intake.IntakeTests.test_docs) ... ok
+test_export (test_intake.IntakeTests.test_export) ... ok
+test_export_required_fields (test_intake.IntakeTests.test_export_required_fields) ... ok
+test_failed_retry (test_intake.IntakeTests.test_failed_retry) ... ok
+test_fast_before_slow (test_intake.IntakeTests.test_fast_before_slow) ... ok
+test_handover_commands (test_intake.IntakeTests.test_handover_commands) ... ok
+test_lease_renewal (test_intake.IntakeTests.test_lease_renewal) ... ok
+test_malformed_export_is_independent (test_intake.IntakeTests.test_malformed_export_is_independent) ... ok
+test_offline_burst (test_intake.IntakeTests.test_offline_burst) ... ok
+test_process_interruption_resume (test_intake.IntakeTests.test_process_interruption_resume) ... ok
+test_provider_contract (test_intake.IntakeTests.test_provider_contract) ... ok
+test_provider_credentials_and_redaction (test_intake.IntakeTests.test_provider_credentials_and_redaction) ... ok
+test_provider_failure (test_intake.IntakeTests.test_provider_failure) ... ok
+test_queue_fields_and_retry (test_intake.IntakeTests.test_queue_fields_and_retry) ... ok
+test_recovery (test_intake.IntakeTests.test_recovery) ... ok
+test_refusal_and_interruption_are_current_errors (test_intake.IntakeTests.test_refusal_and_interruption_are_current_errors) ... ok
+test_request_evidence (test_intake.IntakeTests.test_request_evidence) ... ok
+test_service_recovery_preserves_completed (test_intake.IntakeTests.test_service_recovery_preserves_completed) ... ok
+test_unseen_provider_input (test_intake.IntakeTests.test_unseen_provider_input) ... ok
+test_bytes_identity (test_intake.LedgerTests.test_bytes_identity) ... ok
+test_changed_source (test_intake.LedgerTests.test_changed_source) ... ok
+test_incremental_batches (test_intake.LedgerTests.test_incremental_batches) ... ok
+test_same_request_distinct_documents (test_intake.LedgerTests.test_same_request_distinct_documents) ... ok
+test_saved_provenance (test_intake.LedgerTests.test_saved_provenance) ... ok
+test_settings_refresh (test_intake.LedgerTests.test_settings_refresh) ... ok
+test_unchanged (test_intake.LedgerTests.test_unchanged) ... ok
+test_mock_provider (test_intake.MockProviderTests.test_mock_provider)
+Step 1: saved replies alone, with expectations frozen from S01–S21. ... ok
+test_all_source_cases (test_intake.RoutingTests.test_all_source_cases) ... ok
+test_clarification (test_intake.RoutingTests.test_clarification) ... ok
+test_complete (test_intake.RoutingTests.test_complete) ... ok
+test_conflicts (test_intake.RoutingTests.test_conflicts) ... ok
+test_inverted_dates (test_intake.RoutingTests.test_inverted_dates) ... ok
+test_missing_dates (test_intake.RoutingTests.test_missing_dates) ... ok
+test_override (test_intake.RoutingTests.test_override) ... ok
+test_routing_precedence (test_intake.RoutingTests.test_routing_precedence) ... ok
+test_security (test_intake.RoutingTests.test_security) ... ok
+test_synthetic (test_intake.RoutingTests.test_synthetic) ... ok
+test_withdrawal (test_intake.RoutingTests.test_withdrawal) ... ok
+test_a_mock_reply_is_read_with_no_key_and_no_network (test_starter.MockResponse.test_a_mock_reply_is_read_with_no_key_and_no_network) ... ok
+test_each_request_export_has_message_text_and_a_hash (test_starter.SuppliedFiles.test_each_request_export_has_message_text_and_a_hash) ... ok
+test_the_schema_names_the_fields_it_requires (test_starter.SuppliedFiles.test_the_schema_names_the_fields_it_requires) ... ok
+
+----------------------------------------------------------------------
+Ran 56 tests in 50.012s
+
+OK

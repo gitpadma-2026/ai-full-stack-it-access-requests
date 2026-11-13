@@ -71,7 +71,7 @@ class Config:
         values=self.as_dict()
         if self.provider != 'mock':
             values.pop('mock_digest');values.pop('mock_dir')
-        values['engine_version']='1'
+        values['engine_version']='2'
         return sha(dump(values).encode())
 
     @property
@@ -190,16 +190,21 @@ def validate_reply(reply,message,schema):
 def route(ext,message,document_id):
     """Ordered policy. This function prepares human work; it never grants access."""
     issues=ext['issues']
-    if OVERRIDE.search(message) or any(re.search(r'instruction.?override|injection|embedded instruction',x,re.I) for x in issues):
+    rid=ext['request_id']
+    # Preserve identity evidence even when an earlier policy rule determines routing.
+    filename_id=Path(document_id).stem
+    if rid and filename_id!=rid:
+        if not any('mismatch' in x for x in issues):
+            issues.append('request_id: identifier mismatch with document filename')
+    override=OVERRIDE.search(message)
+    if override or any(re.search(r'instruction.?override|injection|embedded instruction',x,re.I) for x in issues):
+        # Keep the full attempted instruction, not just the detector's trigger phrase.
+        if override and message not in ext['supporting_quotes']:
+            ext['supporting_quotes'].append(message)
         if not any('instruction-override' in x for x in issues):issues.append('instruction-override attempt in source; inspect original message')
         return 'review','IT Service Desk','inspect-message'
     if ext['kind']=='withdrawal' and ext['request_id'] and ext['request_date']:
         return 'review','IT Service Desk','confirm-withdrawal'
-    rid=ext['request_id']
-    # Only compare filename identifiers where the filename actually encodes the IT ID.
-    filename_id=Path(document_id).stem
-    if re.fullmatch(r'IT-\d+',filename_id) and rid and filename_id!=rid:
-        issues.append('request_id: identifier mismatch with document filename') if not any('mismatch' in x for x in issues) else None
     if ext['start_date'] and ext['end_date'] and ext['start_date']>ext['end_date']:
         if not any('start_date after' in x for x in issues):issues.append('start_date after end_date')
     # Issues concerning corrected source values can be informational. Unresolved conflicts remain blockers.
@@ -307,6 +312,9 @@ class Store:
         r={k:row[k] for k in ('attempt_id','document_id','source_sha256','config_key','state','created_at')}
         cfg=json.loads(row['config'])
         r.update(policy_sha256=sha(cfg['policy'].encode()),model=cfg['model'],provider=cfg['provider'])
+        r['configuration']={k:cfg[k] for k in ('timeout','retries','interval','max_output_tokens')}
+        r['configuration'].update(prompt_sha256=sha(cfg['prompt'].encode()),
+                                  schema_sha256=sha(dump(cfg['schema']).encode()))
         result=json.loads(row['result']) if row['result'] else {
             'extraction':None,'status':row['state'],'owner':'IT Service Desk',
             'next_action':'resume-intake','error':None,
@@ -447,9 +455,12 @@ def accuracy(records,truth):
 def write_accuracy(records,output):
     truth=json.loads((ROOT/'tests/ground_truth.json').read_text())
     report=accuracy(records,truth)
-    text='''# Accuracy procedure and observed mock comparison\n\nExpected values were frozen from message text and office policy in `tests/ground_truth.json` before implementation. The evidence mapping contains exact source substrings for every non-null scalar, plus the full message for missing/conflicting facts. All 20 supplied documents and the authored `examples/requests/SYN-001.json` are covered. `kind` is normalized from the quoted request wording. These labels and saved replies were manually authored; matching mock labels is a pipeline check, not evidence of live language-model accuracy.\n\nCompare 12 scalar fields per document using literal Python equality, including nulls. Denominator: 21 × 12 = 252. Missing/error records count as 12 mismatches, even when an expected field is null. Compare status/owner/next_action separately: 21 × 3 = 63. Purpose uses a frozen verbatim span: semantically equivalent wording still differs under exact matching. Supporting_quotes and issues are excluded from scalar counts because their wording/selection varies; automated checks enforce exact evidence substrings, null issues, and routing, and reviewers inspect factual coverage.\n\nEach difference below is an exact-match difference with source evidence where applicable; a human must distinguish unsupported facts from equivalent wording. Review every claimed fact against decoded message text; count unsupported/wrong facts separately from omissions, report affected documents/fields, and retain the compared input hashes and configuration keys in extraction records. No live factual-error rate has been measured.\n\nCommands: see README. Use `accuracy` against exported JSONL (plus the synthetic export); changing labels to fit outputs is prohibited. Provider/model/configuration and mock/live provenance are stored in each extraction. Request configuration is in `request-evidence.json`.\n\n'''
-    text+=f"Observed scalar matches: {report['scalar_matches']}/{report['scalar_total']}. Routing matches: {report['routing_matches']}/{report['routing_total']}. Sources: {', '.join(report['response_sources'])}. Live observations: none.\n\n"
-    text+='## Differences\n\n'+('None in this mocked comparison.\n' if not report['differences'] else '```json\n'+json.dumps(report['differences'],indent=2)+'\n```\n')
+    text='''# Accuracy procedure and observed comparison\n\nExpected values were frozen from message text and office policy in `tests/ground_truth.json` before implementation. The evidence mapping contains exact source substrings for every non-null scalar, plus the full message for missing/conflicting facts. All 20 supplied documents and the authored `examples/requests/SYN-001.json` are covered. `kind` is normalized from the quoted request wording. These labels and saved replies were manually authored; matching mock labels is a pipeline check, not evidence of live language-model accuracy.\n\nCompare 12 scalar fields per document using literal Python equality, including nulls. Denominator: 21 × 12 = 252. Missing/error records count as 12 mismatches, even when an expected field is null. Compare status/owner/next_action separately: 21 × 3 = 63. Purpose uses a frozen verbatim span: semantically equivalent wording still differs under exact matching. Supporting_quotes and issues are excluded from scalar counts because their wording/selection varies; automated checks enforce exact evidence substrings, null issues, and routing, and reviewers inspect factual coverage.\n\nEach difference below is an exact-match difference with source evidence where applicable; a human must distinguish unsupported facts from equivalent wording. Review every claimed fact against decoded message text; count unsupported/wrong facts separately from omissions, report affected documents/fields, and retain the compared input hashes and configuration keys in extraction records. This comparison alone does not establish a live factual-error rate.\n\nCommands: see README. Use `accuracy` against exported JSONL (plus the synthetic export); changing labels to fit outputs is prohibited. Provider/model/configuration and the recorded response path are stored in each extraction. Request configuration is in `request-evidence.json`.\n\n'''
+    text+=f"Observed scalar matches: {report['scalar_matches']}/{report['scalar_total']}. Routing matches: {report['routing_matches']}/{report['routing_total']}. Sources: {', '.join(report['response_sources'])}. Provider labels identify the response path; they do not establish whether transport was live or faked.\n\n"
+    text+='## Differences\n\n'+('No exact-match discrepancies observed in these records. Factual review of source evidence remains separate.\n' if not report['differences'] else '```json\n'+json.dumps(report['differences'],indent=2)+'\n```\n')
+    text+='\n## Observed configuration and provenance\n\n| Document | Provider / configured model / response source | Source SHA-256 | Configuration key | Settings |\n|---|---|---|---|---|\n'
+    for record in sorted(records,key=lambda r:r['document_id']):
+        text+=f"| {record['document_id']} | {record.get('provider','unrecorded')} / {record.get('model','unrecorded')} / {record['response_source']} | {record.get('source_sha256','unrecorded')} | {record.get('config_key','unrecorded')} | `{dump(record.get('configuration',{}))}` |\n"
     text+='\n## Frozen source-derived expected fields\n\n| Document | Expected scalars | Status / owner / next action | Evidence |\n|---|---|---|---|\n'
     for name,item in truth.items():
         text+=f"| {name} | `{json.dumps({k:item['expected'][k] for k in SCALARS},ensure_ascii=False)}` | {' / '.join(item['route'].values())} | `{item['source']}`; per-field source quotes in `tests/ground_truth.json` |\n"

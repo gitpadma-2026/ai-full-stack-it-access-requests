@@ -1,0 +1,14 @@
+test_docs (test_intake.IntakeTests.test_docs) ... FAIL
+
+======================================================================
+FAIL: test_docs (test_intake.IntakeTests.test_docs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/ai-full-stack-it-access-requests/tests/test_intake.py", line 1063, in test_docs
+    self.assertFalse('fails session capture because `entire` is not installed' in verification,
+AssertionError: True is not false : Capture prerequisite observation is stale
+
+----------------------------------------------------------------------
+Ran 1 test in 0.032s
+
+FAILED (failures=1)

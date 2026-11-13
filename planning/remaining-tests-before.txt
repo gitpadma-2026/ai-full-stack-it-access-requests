@@ -1,0 +1,66 @@
+test_routing_precedence (test_intake.IntakeTests.test_routing_precedence) ...
+  test_routing_precedence (test_intake.IntakeTests.test_routing_precedence) (document_id='FRESH-001.json') ... FAIL
+  test_routing_precedence (test_intake.IntakeTests.test_routing_precedence) (document_id='BURST-0001.json') ... FAIL
+
+======================================================================
+FAIL: test_routing_precedence (test_intake.IntakeTests.test_routing_precedence) (document_id='FRESH-001.json')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/ai-full-stack-it-access-requests/tests/test_intake.py", line 498, in test_routing_precedence
+    self.assertEqual(route(ext, '', document_id), clarify)
+AssertionError: Tuples differ: ('review', 'System Owner', 'review-request') != ('needs-information', 'IT Service Desk', 'clarify')
+
+First differing element 0:
+'review'
+'needs-information'
+
+- ('review', 'System Owner', 'review-request')
++ ('needs-information', 'IT Service Desk', 'clarify')
+
+======================================================================
+FAIL: test_routing_precedence (test_intake.IntakeTests.test_routing_precedence) (document_id='BURST-0001.json')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/ai-full-stack-it-access-requests/tests/test_intake.py", line 498, in test_routing_precedence
+    self.assertEqual(route(ext, '', document_id), clarify)
+AssertionError: Tuples differ: ('review', 'System Owner', 'review-request') != ('needs-information', 'IT Service Desk', 'clarify')
+
+First differing element 0:
+'review'
+'needs-information'
+
+- ('review', 'System Owner', 'review-request')
++ ('needs-information', 'IT Service Desk', 'clarify')
+
+----------------------------------------------------------------------
+Ran 1 test in 0.030s
+
+FAILED (failures=2)
+test_routing_precedence (test_intake.IntakeTests.test_routing_precedence) ... FAIL
+
+======================================================================
+FAIL: test_routing_precedence (test_intake.IntakeTests.test_routing_precedence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/ai-full-stack-it-access-requests/tests/test_intake.py", line 507, in test_routing_precedence
+    self.assertTrue(any('SYSTEM OVERRIDE' in quote for quote in ext['supporting_quotes']))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 0.031s
+
+FAILED (failures=1)
+test_routing_precedence (test_intake.RoutingTests.test_routing_precedence) ... FAIL
+
+======================================================================
+FAIL: test_routing_precedence (test_intake.RoutingTests.test_routing_precedence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/ai-full-stack-it-access-requests/tests/test_intake.py", line 501, in test_routing_precedence
+    self.assertTrue(any(instruction in quote for quote in ext['supporting_quotes']))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)
