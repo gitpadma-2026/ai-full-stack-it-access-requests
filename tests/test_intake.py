@@ -20,6 +20,43 @@ ROOT = Path(__file__).resolve().parents[1]
 TRUTH = json.loads((ROOT / 'tests/ground_truth.json').read_text())
 
 
+class MockProviderTests(unittest.TestCase):
+    def test_mock_provider(self):
+        """Step 1: saved replies alone, with expectations frozen from S01–S21."""
+        forbidden = AssertionError('step 1 must not access credentials or network')
+        environment = mock.MagicMock(spec=os.environ)
+        environment.get.side_effect = forbidden
+        environment.__getitem__.side_effect = forbidden
+        with mock.patch.object(os, 'environ', environment), \
+                mock.patch.object(os, 'getenv', side_effect=forbidden), \
+                mock.patch.object(socket, 'socket', side_effect=forbidden), \
+                mock.patch('access_intake.app.urllib.request.urlopen', side_effect=forbidden), \
+                mock.patch('access_intake.app.Store', side_effect=AssertionError('storage forbidden')), \
+                mock.patch('access_intake.app.validate_reply', side_effect=AssertionError('validation forbidden')), \
+                mock.patch('access_intake.app.route', side_effect=AssertionError('routing forbidden')):
+            provider = MockProvider(Config())
+            self.assertEqual(set(TRUTH), {f'IT-{i:03}.json' for i in range(1, 21)} | {'SYN-001.json'})
+            for name, item in TRUTH.items():
+                with self.subTest(name=name):
+                    message = json.loads((ROOT / item['source']).read_text())['message']
+                    # Decode the saved envelope directly; no later pipeline component.
+                    reply = provider.extract(name, message)
+                    extraction = json.loads(reply['output'][0]['content'][0]['text'])
+                    expected = item['expected']
+                    for field, value in expected.items():
+                        if field not in ('supporting_quotes', 'issues'):
+                            self.assertEqual(extraction[field], value, (name, field))
+                    for quote in item['evidence'].values():
+                        self.assertIn(quote, message)
+                    self.assertEqual(reply['source_message_sha256'],
+                                     hashlib.sha256(message.encode('utf-8')).hexdigest())
+            message = json.loads((ROOT / TRUTH['IT-001.json']['source']).read_text())['message']
+            with self.assertRaises(ProviderError):
+                provider.extract('UNKNOWN.json', message)
+            with self.assertRaises(ProviderError):
+                provider.extract('IT-001.json', 'unseen fixture text')
+
+
 class IntakeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -59,14 +96,6 @@ class IntakeTests(unittest.TestCase):
         for key,quote in item['evidence'].items():
             self.assertIn(quote,message,(name,key))
         return ext
-
-    def test_mock_provider(self):
-        with mock.patch.dict(os.environ, {}, clear=True):
-            self.check_source('IT-001.json')
-        with self.assertRaises(ProviderError):
-            self.provider.extract('unknown.json','fresh unseen wording')
-        with self.assertRaises(ProviderError):
-            self.provider.extract('IT-001.json','changed message')
 
     def test_bytes_identity(self):
         self.enqueue()
