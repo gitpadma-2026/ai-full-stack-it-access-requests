@@ -1,0 +1,45 @@
+env -u API_KEY python -m unittest discover -s tests
+
+---
+
+git add
+
+---
+
+git commit -m "step: 1 Implement planned functionality
+
+---
+
+is my excersise done for wwek-02/day04
+
+---
+
+give me what is left
+
+---
+
+read planning/spec.md, planning/plan.md,planning/validation,md and existing test
+
+---
+
+identify which req are already implemented and which are missing or insufficiently tested
+
+---
+
+reslove the step 1 test first issue without deliberately breaking passing test
+
+---
+
+so what more remaning now
+
+---
+
+work from steps 2-8 in the planned order
+
+---
+
+for each step write the required tests first
+
+---
+
+Commit
